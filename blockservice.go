@@ -234,9 +234,15 @@ func getBlock(ctx context.Context, c cid.Cid, bs blockstore.Blockstore, fget fun
 		return nil, err
 	}
 
-	block, err := bs.Get(ctx, c)
-	if err == nil {
-		return block, nil
+	// if cid has parameter, set error of ipld.ErrNotFound
+	if c.GetParam() != "" {
+		err = ipld.ErrNotFound{Cid: c}
+	} else {
+		var block blocks.Block
+		block, err = bs.Get(ctx, c)
+		if err == nil {
+			return block, nil
+		}
 	}
 
 	if ipld.IsNotFound(err) && fget != nil {
@@ -455,7 +461,6 @@ func (s *Session) getFetcherFactory() func() notifiableFetcher {
 func (s *Session) GetBlock(ctx context.Context, c cid.Cid) (blocks.Block, error) {
 	ctx, span := internal.StartSpan(ctx, "Session.GetBlock", trace.WithAttributes(attribute.Stringer("CID", c)))
 	defer span.End()
-
 	return getBlock(ctx, c, s.bs, s.getFetcherFactory()) // hash security
 }
 
